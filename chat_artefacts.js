@@ -17,6 +17,8 @@
 (function() {
     'use strict';
 
+    const PANEL_WIDTH_KEY = 'chatgpt_artifact_panel_width';
+
     // Check if we're in an artefact context
     if (window.location.href.includes('/artefact') || window.parent !== window) {
         return; // Exit early if we're in an artefact or iframe
@@ -505,12 +507,15 @@
             panel.remove();
         }
 
+
+        const savedWidth = localStorage.getItem(PANEL_WIDTH_KEY) || '600px';
+
         panel = document.createElement('div');
         panel.style.cssText = `
             position: fixed;
             top: 0;
             right: 0;
-            width: 600px;
+            width: ${savedWidth};
             height: 100%;
             background: #f7f7f8;
             box-shadow: -2px 0 5px rgba(0,0,0,0.3);
@@ -520,6 +525,18 @@
             transform: translateX(100%);
             transition: transform 0.3s ease-in-out;
         `;
+
+        const resizeHandle = document.createElement('div');
+        resizeHandle.style.cssText = `
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 5px;
+            cursor: ew-resize;
+            background: #ccc;
+        `;
+        panel.appendChild(resizeHandle);
 
         const header = document.createElement('div');
         header.style.cssText = `
@@ -542,7 +559,11 @@
             cursor: pointer;
             color: white;
         `;
-        closeButton.onclick = () => panel.style.transform = 'translateX(100%)';
+        closeButton.onclick = () => {
+            panel.style.transform = 'translateX(100%)';
+            document.removeEventListener('mousemove', resizePanel);
+            document.removeEventListener('mouseup', stopResizing);
+        };
 
         header.appendChild(closeButton);
         panel.appendChild(header);
@@ -566,6 +587,7 @@
         panel.appendChild(contentContainer);
 
         document.body.appendChild(panel);
+        resizeHandle.addEventListener('mousedown', startResizing);
 
         const codeContent = typeof codeBlock === 'string' ? codeBlock : (codeBlock.querySelector('code') ? codeBlock.querySelector('code').innerText : codeBlock.innerText);
 
@@ -611,6 +633,34 @@
                 panel.style.transform = 'translateX(100%)';
             }
         }, { once: true });
+    }
+
+    let isResizing = false;
+    let lastDownX = 0;
+
+    function startResizing(e) {
+        isResizing = true;
+        lastDownX = e.clientX;
+        document.body.classList.add('resizing');
+        document.addEventListener('mousemove', resizePanel);
+        document.addEventListener('mouseup', stopResizing);
+    }
+
+    function resizePanel(e) {
+        if (!isResizing) return;
+        const offsetRight = document.body.offsetWidth - (e.clientX - document.body.offsetLeft);
+        const minWidth = 300;
+        const maxWidth = document.body.offsetWidth;
+        const newWidth = Math.max(minWidth, Math.min(maxWidth, offsetRight));
+        panel.style.width = newWidth + 'px';
+        document.body.classList.remove('resizing');
+        localStorage.setItem(PANEL_WIDTH_KEY, `${newWidth}px`);
+    }
+
+    function stopResizing() {
+        isResizing = false;
+        document.removeEventListener('mousemove', resizePanel);
+        document.removeEventListener('mouseup', stopResizing);
     }
 
     function addButtonsNextToCopy(codeBlock) {
@@ -939,5 +989,15 @@ GM_addStyle(`
     }
     .custom-tooltip:hover + [role="tooltip"] {
         display: none !important;
+    }
+    .slide-out-panel {
+        transition: width 0.1s ease-in-out;
+    }
+    .slide-out-panel .resize-handle:hover {
+        background: #999;
+    }
+    body.resizing {
+        cursor: ew-resize;
+        user-select: none;
     }
 `);
