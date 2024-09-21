@@ -458,6 +458,10 @@
             '"': '&quot;',
             "'": '&#039;',
         };
+        if (typeof codeBlock !== 'string') {
+            // might be dom element
+            text = text.innerText;
+        }
         return text.replace(/[&<>"']/g, function(m) { return map[m]; });
     }
 
@@ -469,10 +473,20 @@
         const newWindow = window.open(newUrl, '_blank');
         if (newWindow) {
             newWindow.document.open();
-            if (isHTML) {
+            if (isMermaidDiagram(code)) {
+                newWindow.document.write(`
+                <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+                <div class="mermaid">
+                    ${code.innerText}
+                </div>
+                <script>
+                    mermaid.initialize({ startOnLoad: true });
+                </script>
+            `);
+            } else if (isHTML) {
                 newWindow.document.write(code);
             } else {
-                newWindow.document.write(code);
+                newWindow.document.write(`<pre>${escapeHtml(code)}</pre>`);
             }
 
             // Update the URL display without navigating
@@ -553,17 +567,36 @@
 
         document.body.appendChild(panel);
 
-        if (isHTML === false) {
+        const codeContent = typeof codeBlock === 'string' ? codeBlock : (codeBlock.querySelector('code') ? codeBlock.querySelector('code').innerText : codeBlock.innerText);
+
+        if (isMermaidDiagram(codeBlock)) {
+            const doc = iframe.contentDocument || iframe.contentWindow.document;
+            doc.open();
+            doc.write(`
+                <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+                <div class="mermaid">
+                    ${codeContent}
+                </div>
+                <script>
+                    mermaid.initialize({ startOnLoad: true });
+                </script>
+            `);
+            doc.close();
+        } else if (isHtml(codeContent) || isHTML === true) {
+            console.log("html")
+            const doc = iframe.contentDocument || iframe.contentWindow.document;
+            doc.open();
+            doc.write(codeContent);
+            doc.close();
+        } else if (isHTML === false) {
+            console.log("plain text")
             // If not HTML, assume it's plain text code
             const doc = iframe.contentDocument || iframe.contentWindow.document;
             doc.open();
             doc.write(`<pre>${escapeHtml(codeBlock)}</pre>`);
             doc.close();
-        } else if (isHTML === true) {
-            const doc = iframe.contentDocument || iframe.contentWindow.document;
-            doc.open();
-            doc.write(codeBlock);
-            doc.close();
+        } else {
+            console.log("what?");
         }
 
         setTimeout(() => panel.style.transform = 'translateX(0)', 0);
@@ -656,7 +689,7 @@
         openTabButton.style.cssText = buttonStyle;
         openTabButton.onclick = (e) => {
             e.stopPropagation();
-            openInNewTab(codeBlock);
+            openCodeInNewTab(codeBlock, false);
         };
 
         // Create "Save" button
@@ -834,6 +867,47 @@
         isDragging = false;
         document.documentElement.removeEventListener('mousemove', dragPanel, false);
         document.documentElement.removeEventListener('mouseup', stopDragging, false);
+    }
+
+    function isMermaidDiagram(codeBlock) {
+        console.log("ismermaid", codeBlock);
+        if (typeof codeBlock === 'string') {
+            return codeBlock.trim().toLowerCase().startsWith('graph') ||
+                codeBlock.trim().toLowerCase().startsWith('sequencediagram') ||
+                codeBlock.trim().toLowerCase().startsWith('classDiagram') ||
+                codeBlock.trim().toLowerCase().startsWith('stateDiagram') ||
+                codeBlock.trim().toLowerCase().startsWith('erDiagram') ||
+                codeBlock.trim().toLowerCase().startsWith('journey') ||
+                codeBlock.trim().toLowerCase().startsWith('gantt') ||
+                codeBlock.trim().toLowerCase().startsWith('pie') ||
+                codeBlock.trim().toLowerCase().startsWith('flowchart');
+        } else {
+            // dom element
+            const parentElement = codeBlock.parentElement;
+            if (!parentElement) return false;
+
+            const languageDiv = parentElement.querySelector('div:first-child');
+            if (!languageDiv) return false;
+
+            return languageDiv.textContent.toLowerCase().includes('mermaid');
+        }
+    }
+
+    function isHtml(codeBlock) {
+        console.log("html", codeBlock);
+        if (typeof codeBlock === 'string') {
+            return codeBlock.trim().toLowerCase().startsWith('<html>') ||
+                codeBlock.trim().toLowerCase().startsWith('<!doctype');
+        } else {
+            // dom element
+            const parentElement = codeBlock.parentElement;
+            if (!parentElement) return false;
+
+            const languageDiv = parentElement.querySelector('div:first-child');
+            if (!languageDiv) return false;
+
+            return languageDiv.textContent.toLowerCase().includes('html');
+        }
     }
 
 })();
