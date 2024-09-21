@@ -261,7 +261,7 @@
     toggleButton.addEventListener("click", () => {
         libraryContainer.style.display = libraryContainer.style.display === "none" ? "flex" : "none";
         toggleButton.style.display = libraryContainer.style.display === "flex" ? "none" : "flex";
-    });    
+    });
 
     // Update Library Button Visibility
     function updateLibraryButtonVisibility() {
@@ -836,18 +836,18 @@
             reinitializeProcessor();
         } else {
             // Check if the observer is still connected to the DOM
-            const observerActive = Array.from(chatObserver.takeRecords()).length > 0 || 
+            const observerActive = Array.from(chatObserver.takeRecords()).length > 0 ||
                                    chatObserver.observe(chatContainer, { childList: true, subtree: true });
 
             if (!observerActive) {
                 reinitializeProcessor();
             }
         }
-    }    
+    }
 
     function setupPeriodicCheck() {
         setInterval(checkAndReinitialize, 10000); // Check every 10 seconds
-    }    
+    }
 
     function addIndicator() {
         const indicator = document.createElement('div');
@@ -886,15 +886,31 @@
         observeChat();
     }
 
-    // Use MutationObserver to wait for the chat interface to load
-    const bodyObserver = new MutationObserver((mutations) => {
+    const intervalId = setInterval(() => {
         if (document.querySelector('main')) {
-            bodyObserver.disconnect();
-            setTimeout(initializeProcessor, 500); // Delay execution by 0.5 seconds
+            console.log("chat loaded");
+            clearInterval(intervalId);
+            setTimeout(initializeProcessor, 500);
         }
-    });
+    }, 100);
 
-    bodyObserver.observe(document.body, { childList: true, subtree: true });
+    console.log("Polling started to check for main element");
+
+    // console.log("enter main");
+    //
+    // // Use MutationObserver to wait for the chat interface to load
+    // const bodyObserver = new MutationObserver((mutations) => {
+    //     console.log("body mutation happened", mutations);
+    //     if (document.querySelector('main')) {
+    //         console.log("chat loaded");
+    //         bodyObserver.disconnect();
+    //         setTimeout(initializeProcessor, 500); // Delay execution by 0.5 seconds
+    //     }
+    // });
+    //
+    // bodyObserver.observe(document.body, { childList: true, subtree: true });
+    // console.log("begin observe finished");
+    //
 
     // Dragging functionality for the slide-out panel
     function startDragging(e) {
